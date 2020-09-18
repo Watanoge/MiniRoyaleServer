@@ -1,8 +1,7 @@
-var port = process.env.PORT || 4000,
-	io = require('socket.io')(port);
+var io = require('socket.io')(process.env.PORT || 4000);
 
 var _ = require('lodash');
-var gameVersion = "0.1.1";
+var gameVersion = "0.1.1b";
 
 //Custom Classes
 var Player = require('./Classes/Player.js');
