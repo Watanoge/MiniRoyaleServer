@@ -11,7 +11,7 @@ var rooms = [];
 
 function UpdatePlayerValues(currentRoom) {
 	var playerList = "",
-		currentName, currentId;
+		currentName, currentId, currentHat, currentHead, currentBody;
 
 	for (var playerId in currentRoom.players) {
 		currentName = currentRoom.players[playerId].username;
@@ -23,8 +23,26 @@ function UpdatePlayerValues(currentRoom) {
 		currentId = currentRoom.players[playerId].id;
 		playerList += currentId + ",";
 	}
-	console.log("End list: " + playerList);
 	playerList += "|"
+
+	for (var playerId in currentRoom.players) {
+		currentHat = currentRoom.players[playerId].hatIndex;
+		playerList += currentHat + ",";
+	}
+	playerList += "|"
+
+	for (var playerId in currentRoom.players) {
+		currentHead = currentRoom.players[playerId].headIndex;
+		playerList += currentHead + ",";
+	}
+	playerList += "|"
+
+	for (var playerId in currentRoom.players) {
+		currentBody = currentRoom.players[playerId].bodyIndex;
+		playerList += currentBody + ",";
+	}
+	playerList += "|"
+	console.log("End list: " + playerList);
 
 	var count = 0;
 	for (var socketID in currentRoom.sockets) {
@@ -53,28 +71,19 @@ io.on('connection', function (socket) {
 
 	socket.on('loginPlayer', function (data) {
 		rooms[currentRoomID].players[thisPlayerID].username = data.myClient.name;
+		rooms[currentRoomID].players[thisPlayerID].hatIndex = data.hatIndex;
+		rooms[currentRoomID].players[thisPlayerID].headIndex = data.headIndex;
+		rooms[currentRoomID].players[thisPlayerID].bodyIndex = data.bodyIndex;
 		console.log("Player " + thisPlayerID + " of room " + rooms[currentRoomID].id + " is named " + rooms[currentRoomID].players[thisPlayerID].username);
 		var currentRoom = rooms[currentRoomID];
 		UpdatePlayerValues(currentRoom);
-	});
-
-	socket.on('tryRoomConnection', function () {
-		if (Object.keys(rooms).length == 0) {
-			socket.emit('receiveData', {
-				action: "createRoom"
-			});
-		} else {
-			socket.emit('receiveData', {
-				action: "joinRoom"
-			});
-		}
 	});
 
 	socket.on('connectToRoom', function (data) {
 		player.isHost = false;
 		player.isSpectator = false;
 
-		console.log('Connecting to room ' + data.id);
+		console.log('Connecting to room ' + data.instruction);
 		console.log(
 			'There are currently ' +
 			Object.keys(rooms).length +
@@ -83,7 +92,7 @@ io.on('connection', function (socket) {
 		var roomId = 'NA';
 		console.log(rooms);
 		for (var room in rooms) {
-			if (rooms[room].id == data.id) {
+			if (rooms[room].id == data.instruction) {
 				console.log('Room found!');
 				roomId = room;
 			}
@@ -92,7 +101,7 @@ io.on('connection', function (socket) {
 		if (roomId == 'NA') {
 			console.log('Room does not exist!');
 			socket.emit('receiveData', {
-				action: "serverError|¡Oops!|No existe un cuarto con ese nombre.|Aceptar|1"
+				action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
 			});
 		} else {
 			console.log('Room exists, so connect!');
@@ -100,12 +109,12 @@ io.on('connection', function (socket) {
 			if (!currentRoom.isOpen) {
 				console.log('Room is not open!');
 				socket.emit('receiveData', {
-					action: "serverError|¡Oops!|El cuarto está cerrado.|Aceptar|1"
+					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
 				});
 			} else if (currentRoom.isFull) {
 				console.log('Room is full!');
 				socket.emit('receiveData', {
-					action: "serverError|¡Oops!|El cuarto está lleno.|Aceptar|1"
+					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
 				});
 			} else {
 				currentRoomID = currentRoom.id;
@@ -116,7 +125,7 @@ io.on('connection', function (socket) {
 
 				console.log('Successfully connected, now go to lobby!');
 				socket.emit('receiveData', {
-					action: "joinRoomLobby|" + currentRoomID
+					action: "joinLobbyRoom|" + currentRoomID
 				});
 			}
 		}
@@ -127,7 +136,7 @@ io.on('connection', function (socket) {
 
 		if (currentRoomID == null) {
 			var filtered = _.pickBy(rooms, function (x) {
-				return x.isPublic && x.isOpen && !x.isFull;
+				if (x != null) return x.roomSettings.isPublic && x.isOpen && !x.isFull;
 			});
 
 			console.log('Available rooms are: ');
@@ -135,7 +144,7 @@ io.on('connection', function (socket) {
 			if (filtered == null || Object.keys(filtered).length == 0) {
 				console.log('There are no public rooms!');
 				socket.emit('receiveData', {
-					action: "serverError|¡Oops!|No hay ningún cuarto disponible.|Aceptar|1"
+					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
 				});
 			} else {
 				var keys = Object.keys(filtered);
@@ -162,7 +171,7 @@ io.on('connection', function (socket) {
 			}
 		} else {
 			socket.emit('receiveData', {
-				action: "serverError|¡Espera!|Ya estás en un cuarto.|Aceptar|1"
+				action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
 			});
 		}
 	});
@@ -173,7 +182,7 @@ io.on('connection', function (socket) {
 
 		if (currentRoomID == null) {
 			console.log('Creating room');
-			var top = 9999,
+			var top = 99999,
 				minLength = 4;
 			var newRoomId = Math.floor(Math.random() * top);
 			if (Object.keys(rooms).length > 1) {
@@ -181,13 +190,30 @@ io.on('connection', function (socket) {
 					newRoomId = Math.floor(Math.random() * top);
 				} while (rooms.find(x => x.rawId == newRoomId));
 			}
-			var currentRoom = new Room(newRoomId, Math.max(top.toString().length, minLength));
-			currentRoom.isPublic = data.isPublic;
+			var currentRoom = new Room(newRoomId,
+				Math.max(top.toString().length, minLength),
+				data.settings.maxPlayerCount,
+				data.settings.isOnline,
+				data.settings.isPublic,
+				data.settings.roundAmount,
+				data.settings.pointsPerWin,
+				data.settings.pointsToWin,
+				data.settings.availableGames);
 			console.log(
 				'Created room of ID ' +
 				currentRoom.id +
-				' with public set to ' +
-				currentRoom.isPublic
+				'\nwith maxPlayerCount set to ' +
+				currentRoom.roomSettings.maxPlayerCount +
+				'\nwith public set to ' +
+				currentRoom.roomSettings.isPublic +
+				'\nwith roundAmount set to ' +
+				currentRoom.roomSettings.roundAmount +
+				'\nwith pointsPerWin set to ' +
+				currentRoom.roomSettings.pointsPerWin +
+				'\nwith pointsToWin set to ' +
+				currentRoom.roomSettings.pointsToWin +
+				'\nwith availableGames set to ' +
+				currentRoom.roomSettings.availableGames
 			);
 			currentRoom.players[thisPlayerID] = player;
 			currentRoom.sockets[thisPlayerID] = socket;
@@ -197,7 +223,7 @@ io.on('connection', function (socket) {
 
 			console.log("Room created, now go to lobby!");
 			socket.emit('receiveData', {
-				action: "joinRoomLobby|" + currentRoomID
+				action: "joinLobby|" + currentRoomID
 			});
 		} else {
 			socket.emit('receiveData', {
@@ -241,14 +267,6 @@ io.on('connection', function (socket) {
 			} else {
 				var currentRoom = rooms[currentRoomID];
 				UpdatePlayerValues(currentRoom);
-				if (Object.keys(rooms[currentRoomID].players).length > 1) {
-					for (var socketID in rooms[currentRoomID].sockets) {
-						rooms[currentRoomID].sockets[socketID].emit('receiveData', {
-							id: thisPlayerID,
-							action: "disconnectEndTurn|" + count,
-						});
-					}
-				}
 			}
 			currentRoomID = null;
 		}

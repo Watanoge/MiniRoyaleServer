@@ -1,14 +1,15 @@
+const RoomSettings = require("./RoomSettings");
+
 module.exports = class Room {
-  constructor(roomNumber, codeLength) {
+  constructor(roomNumber, codeLength, maxPlayerCount, isOnline, isPublic, roundAmount, pointsPerWin, pointsToWin, availableGames) {
     this.roomName = "";
     this.rawId = roomNumber;
     this.id = roomIdGenerator(roomNumber, codeLength);
     this.players = [];
     this.sockets = [];
-    this.isPublic = false;
     this.isOpen = true;
     this.isFull = false;
-    this.roomSize = 6;
+    this.roomSettings = new RoomSettings(maxPlayerCount, isOnline, isPublic, roundAmount, pointsPerWin, pointsToWin, availableGames);
   }
 };
 
