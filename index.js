@@ -335,6 +335,32 @@ io.on('connection', function (socket) {
 		});
 	})
 
+	socket.on('startGame', function () {
+		var availableGames = [];
+		var gameOrder = [];
+		var currentIndex = 0;
+		for (let index = 0; index < rooms[currentRoomID].roomSettings.availableGames.length; index++) {
+			if (rooms[currentRoomID].roomSettings.availableGames[index]) {
+				availableGames[currentIndex] = index;
+				currentIndex++;
+			}
+		}
+
+		currentIndex = 0;
+		for (let index = 0; index < rooms[currentRoomID].roomSettings.roundAmount; index++) {
+			var randomIndex = (availableGames.length * Math.random() << 0)
+			gameOrder[currentIndex] = availableGames[randomIndex];
+			currentIndex++;
+		}
+
+		for (var socketID in rooms[currentRoomID].sockets) {
+			rooms[currentRoomID].sockets[socketID].emit('receiveData', {
+				id: thisPlayerID,
+				action: "startGame|" + gameOrder,
+			});
+		}
+	})
+
 	socket.on('updateLobbySettings', function (data) {
 		if (currentRoomID != null) {
 			rooms[currentRoomID].roomSettings = JSON.parse(data.instruction);
@@ -350,12 +376,14 @@ io.on('connection', function (socket) {
 
 	socket.on('sendInfo', function (data) {
 		if (currentRoomID != null) {
-			console.log('Info sent! - ' + data.instruction);
-			console.log(
-				'Broadcasting on room ' + rooms[currentRoomID].id + ' to ' +
-				Object.keys(rooms[currentRoomID].sockets).length +
-				' sockets!'
-			);
+			if (!data.instruction.includes("updatePlayerPosition")) {
+				console.log('Info sent! - ' + data.instruction);
+				console.log(
+					'Broadcasting on room ' + rooms[currentRoomID].id + ' to ' +
+					Object.keys(rooms[currentRoomID].sockets).length +
+					' sockets!'
+				);
+			}
 			for (var socketID in rooms[currentRoomID].sockets) {
 				rooms[currentRoomID].sockets[socketID].emit('receiveData', {
 					id: thisPlayerID,
