@@ -101,7 +101,7 @@ io.on('connection', function (socket) {
 		if (roomId == 'NA') {
 			console.log('Room does not exist!');
 			socket.emit('receiveData', {
-				action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
+				action: "serverError|servererror-general-title|servererror-room-notexist|servererror-general-button|1"
 			});
 		} else {
 			console.log('Room exists, so connect!');
@@ -109,19 +109,24 @@ io.on('connection', function (socket) {
 			if (!currentRoom.isOpen) {
 				console.log('Room is not open!');
 				socket.emit('receiveData', {
-					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
+					action: "serverError|servererror-general-title|servererror-room-notopen|servererror-general-button|1"
 				});
 			} else if (currentRoom.isFull) {
 				console.log('Room is full!');
 				socket.emit('receiveData', {
-					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
+					action: "serverError|servererror-general-title|servererror-room-isfull|servererror-general-button|1"
 				});
 			} else {
 				currentRoomID = currentRoom.id;
 				currentRoom.players[thisPlayerID] = player;
 				currentRoom.sockets[thisPlayerID] = socket;
 
-				currentRoom.isFull = Object.keys(currentRoom.players).length == currentRoom.roomSize;
+				currentRoom.isFull = Object.keys(currentRoom.players).length >= currentRoom.roomSettings.maxPlayerCount;
+				console.log(
+					"Room's players: " +
+					Object.keys(currentRoom.players).length +
+					"/" + currentRoom.roomSettings.maxPlayerCount
+				);
 
 				console.log('Successfully connected, now go to lobby!');
 				socket.emit('receiveData', {
@@ -144,7 +149,7 @@ io.on('connection', function (socket) {
 			if (filtered == null || Object.keys(filtered).length == 0) {
 				console.log('There are no public rooms!');
 				socket.emit('receiveData', {
-					action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
+					action: "serverError|servererror-general-title|servererror-room-nopublic|servererror-general-button|1"
 				});
 			} else {
 				var keys = Object.keys(filtered);
@@ -159,19 +164,20 @@ io.on('connection', function (socket) {
 				currentRoomID = currentRoom.id;
 				currentRoom.players[thisPlayerID] = player;
 				currentRoom.sockets[thisPlayerID] = socket;
-				currentRoom.isFull = Object.keys(currentRoom.players).length == currentRoom.roomSize;
+				currentRoom.isFull = Object.keys(currentRoom.players).length >= currentRoom.roomSettings.maxPlayerCount;
 				console.log(
 					"Room's players: " +
-					Object.keys(currentRoom.players).length
+					Object.keys(currentRoom.players).length +
+					"/" + currentRoom.roomSettings.maxPlayerCount
 				);
 				console.log('Successfully connected, now go to lobby!');
 				socket.emit('receiveData', {
-					action: "joinRoomLobby|" + currentRoomID
+					action: "joinLobbyRoom|" + currentRoomID
 				});
 			}
 		} else {
 			socket.emit('receiveData', {
-				action: "serverError|servererror-general-title|servererror-general-prompt|servererror-general-button|1"
+				action: "serverError|servererror-general-title|servererror-room-joiningroom|servererror-general-button|1"
 			});
 		}
 	});
@@ -227,7 +233,7 @@ io.on('connection', function (socket) {
 			});
 		} else {
 			socket.emit('receiveData', {
-				action: "serverError|¡Espera!|Ya estás en un cuarto.|Aceptar|1"
+				action: "serverError|servererror-general-title|servererror-room-joiningroom|servererror-general-button|1"
 			});
 		}
 	});
@@ -248,7 +254,7 @@ io.on('connection', function (socket) {
 
 			delete rooms[currentRoomID].players[thisPlayerID];
 			delete rooms[currentRoomID].sockets[thisPlayerID];
-			rooms[currentRoomID].isFull = Object.keys(rooms[currentRoomID].players).length == rooms[currentRoomID].roomSize;
+			rooms[currentRoomID].isFull = Object.keys(rooms[currentRoomID].players).length == rooms[currentRoomID].roomSettings.maxPlayerCount;
 			//Disconnect player in other clients
 			for (var socketID in rooms[currentRoomID].sockets) {
 				rooms[currentRoomID].sockets[socketID].emit('receiveData', {
@@ -289,7 +295,7 @@ io.on('connection', function (socket) {
 
 			delete rooms[currentRoomID].players[thisPlayerID];
 			delete rooms[currentRoomID].sockets[thisPlayerID];
-			rooms[currentRoomID].isFull = Object.keys(rooms[currentRoomID].players).length == rooms[currentRoomID].roomSize;
+			rooms[currentRoomID].isFull = Object.keys(rooms[currentRoomID].players).length == rooms[currentRoomID].roomSettings.maxPlayerCount;
 			//Disconnect player in other clients
 			for (var socketID in rooms[currentRoomID].sockets) {
 				rooms[currentRoomID].sockets[socketID].emit('receiveData', {
@@ -321,6 +327,26 @@ io.on('connection', function (socket) {
 		}
 		console.log('Successfully disconnected!');
 	});
+
+	socket.on('pingInfo', function () {
+		socket.emit('receiveData', {
+			id: thisPlayerID,
+			action: "checkPing|",
+		});
+	})
+
+	socket.on('updateLobbySettings', function (data) {
+		if (currentRoomID != null) {
+			rooms[currentRoomID].roomSettings = JSON.parse(data.instruction);
+			rooms[currentRoomID].isFull = Object.keys(rooms[currentRoomID].players).length >= rooms[currentRoomID].roomSettings.maxPlayerCount;
+			for (var socketID in rooms[currentRoomID].sockets) {
+				rooms[currentRoomID].sockets[socketID].emit('receiveData', {
+					id: thisPlayerID,
+					action: "updateServerSettings|" + data.instruction,
+				});
+			}
+		}
+	})
 
 	socket.on('sendInfo', function (data) {
 		if (currentRoomID != null) {

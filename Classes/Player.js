@@ -8,5 +8,6 @@ module.exports = class Player {
     this.hatIndex = 0;
     this.headIndex = 0;
     this.bodyIndex = 0;
+    this.playerPoints = 0;
   }
 };
