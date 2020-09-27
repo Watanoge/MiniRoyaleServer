@@ -1,13 +1,14 @@
 var io = require('socket.io')(process.env.PORT || 4000);
 
 var _ = require('lodash');
-var gameVersion = "0.0.5b";
+var gameVersion = "0.0.9a";
 
 //Custom Classes
 var Player = require('./Classes/Player.js');
 const Room = require('./Classes/Room.js');
 
 var rooms = [];
+var playerAmount = 0;
 
 function UpdatePlayerValues(currentRoom) {
 	var playerList = "",
@@ -57,6 +58,7 @@ function UpdatePlayerValues(currentRoom) {
 io.on('connection', function (socket) {
 	console.log('Connection made!');
 
+	playerAmount++;
 	var player = new Player();
 	var thisPlayerID = player.id;
 	socket.emit('register', {
@@ -65,7 +67,7 @@ io.on('connection', function (socket) {
 	});
 	console.log('Player created!');
 	console.log(
-		'There are currently ' + Object.keys(rooms).length + ' rooms active!'
+		'There are currently ' + Object.keys(rooms).length + ' rooms active and ' + playerAmount + ' players!'
 	);
 	var currentRoomID;
 
@@ -325,6 +327,7 @@ io.on('connection', function (socket) {
 			}
 			currentRoomID = null;
 		}
+		playerAmount--;
 		console.log('Successfully disconnected!');
 	});
 
@@ -332,6 +335,13 @@ io.on('connection', function (socket) {
 		socket.emit('receiveData', {
 			id: thisPlayerID,
 			action: "checkPing|",
+		});
+	})
+
+	socket.on('getMultiplayerInfo', function () {
+		socket.emit('receiveData', {
+			id: thisPlayerID,
+			action: "setMultiplayerInfo|" + playerAmount + "|" + Object.keys(rooms).length,
 		});
 	})
 
