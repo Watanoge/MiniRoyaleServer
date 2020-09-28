@@ -196,7 +196,7 @@ io.on('connection', function (socket) {
 			if (Object.keys(rooms).length > 1) {
 				do {
 					newRoomId = Math.floor(Math.random() * top);
-				} while (rooms.find(x => x.rawId == newRoomId));
+				} while (rooms.find(x => x && x.rawId == newRoomId));
 			}
 			var currentRoom = new Room(newRoomId,
 				Math.max(top.toString().length, minLength),
@@ -356,6 +356,7 @@ io.on('connection', function (socket) {
 			}
 		}
 
+		rooms[currentRoomID].isOpen = false;
 		currentIndex = 0;
 		for (let index = 0; index < rooms[currentRoomID].roomSettings.roundAmount; index++) {
 			var randomIndex = (availableGames.length * Math.random() << 0)
@@ -394,6 +395,12 @@ io.on('connection', function (socket) {
 					' sockets!'
 				);
 			}
+
+			if (data.instruction.includes("endGame")) {
+				console.log("Game has ended!");
+				rooms[currentRoomID].isOpen = true;
+			}
+
 			for (var socketID in rooms[currentRoomID].sockets) {
 				rooms[currentRoomID].sockets[socketID].emit('receiveData', {
 					id: thisPlayerID,
