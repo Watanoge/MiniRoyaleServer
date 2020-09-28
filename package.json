@@ -10,7 +10,9 @@
   "author": "Chetoz",
   "license": "ISC",
   "dependencies": {
+    "lodash": "^4.17.20",
     "nodemon": "^2.0.4",
+    "shortid": "^2.2.15",
     "socket.io": "^2.3.0"
   }
 }
