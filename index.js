@@ -1,7 +1,11 @@
 var io = require('socket.io')(process.env.PORT || 4000);
 
 var _ = require('lodash');
-var gameVersion = "0.0.9a";
+var gameVersion = "0A.20.1004";
+//{GameState}.{Year-2000}.{MonthDay}
+//GameState 0A - Alpha
+//GameState 0B - Beta
+//GameState 1 - Production
 
 //Custom Classes
 var Player = require('./Classes/Player.js');
@@ -10,12 +14,52 @@ const Room = require('./Classes/Room.js');
 var rooms = [];
 var playerAmount = 0;
 
+function SendCustomWarning(socket, warningTitleEsp, warningTextEsp, warningButtonTextEsp, warningTitleEng, warningTextEng, warningButtonTextEng, warningType, warningSize, waitUntil) {
+	socket.emit('receiveData', {
+		action: "customError|" +
+			warningTitleEsp + "|" +
+			warningTextEsp + "|" +
+			warningButtonTextEsp + "|" +
+			warningTitleEng + "|" +
+			warningTextEng + "|" +
+			warningButtonTextEng + "|" +
+			warningType + "|" +
+			warningSize + "|" +
+			waitUntil + "|"
+	});
+}
+
+function SetNotificationText(socket) {
+
+	// setPopupText,
+	// 	"Titulo en español",
+	// 	"Texto en español",
+	// 	"Botón en español",
+	// 	"Título en inglés",
+	// 	"Texto en inglés",
+	// 	"Botón en inglés",
+	// 	2);
+	// Tamaño de error - 0 pequeño, 1 mediano, 2 grande
+	socket.emit('receiveData', {
+		action: "setPopupText|" +
+			"Actualización|" +
+			"<size=50>Versión <color=yellow>" + gameVersion + "</color></size><align=left>\n\n<color=black>*</color> El jugador puede regresar a su posición inicial con <b><color=blue>R</color></b> \n<color=black>*</color> Se arregló overlay de pantalla final con menú de pausa\n<color=black>*</color> Botones de de continuar/iniciar partida se desactivan al usarse por primera vez\n<color=black>*</color> El nombre del jugador debe ser de 15 caracteres (o menos)\n<color=black>*</color> Si el jugador principal se sale de la partida en la pantalla de resultados, el siguiente jugador disponible heredará la función de host y podrá continuar la partida|" +
+			"¡OK!|" +
+			"Update|" +
+			"<size=50>Version <color=yellow>" + gameVersion + "</color></size><align=left>\n\n<color=black>*</color> Player can now reset it's position with <b><color=blue>R</color></b> \n<color=black>*</color> Fixed overlay with result screen and pause menu\n<color=black>*</color> Start match/Next round buttons are now disabled on click\n<color=black>*</color> Player's name must be 15 characters or less\n<color=black>*</color> If host player disconnects on results screen, the host will be transfered to the next player and they'll be able to continue the match|" +
+			"OK!|" +
+			"2|"
+	});
+}
+
 function UpdatePlayerValues(currentRoom) {
 	var playerList = "",
 		currentName, currentId, currentHat, currentHead, currentBody;
 
 	for (var playerId in currentRoom.players) {
 		currentName = currentRoom.players[playerId].username;
+		currentName.replace("|", "");
+		currentName.replace(",", "");
 		playerList += currentName + ",";
 	}
 	playerList += "|"
@@ -56,8 +100,6 @@ function UpdatePlayerValues(currentRoom) {
 }
 
 io.on('connection', function (socket) {
-	console.log('Connection made!');
-
 	playerAmount++;
 	var player = new Player();
 	var thisPlayerID = player.id;
@@ -65,10 +107,22 @@ io.on('connection', function (socket) {
 		id: thisPlayerID,
 		version: gameVersion
 	});
-	console.log('Player created!');
-	console.log(
-		'There are currently ' + Object.keys(rooms).length + ' rooms active and ' + playerAmount + ' players!'
-	);
+
+	SetNotificationText(socket);
+
+	// SendCustomWarning(socket,
+	// 	"Titulo en español",
+	// 	"Texto en español",
+	// 	"Botón en español",
+	// 	"Título en inglés",
+	// 	"Texto en inglés",
+	// 	"Botón en inglés",
+	// 	0, 1, 1);
+	// {tipoDeError}, {tamañoDeError}, {Tiempo de espera}
+	// Tipo de error - 0 regular, 1 cierra el juego
+	// Tamaño de error - 0 pequeño, 1 mediano, 2 grande
+
+	console.log('Player ' + thisPlayerID + ' created, with currently ' + Object.keys(rooms).length + ' rooms active and ' + playerAmount + ' players!');
 	var currentRoomID;
 
 	socket.on('loginPlayer', function (data) {
